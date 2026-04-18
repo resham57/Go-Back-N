@@ -22,6 +22,11 @@ def receive(rx_ip, rx_port, filename):
 
             print(f"Received packet: flag={packet.flag}, seqnum={packet.seqnum}, length={packet.length}")
 
+            # before sending ack, have to add logic to make sure that I am getting correct - in-order packets
+
+            ack = Packet(0, packet.seqnum, 0, None)
+            sock.sendto(ack.serialize(), sender_address)
+
             if packet.flag == 2:  # FIN packet
                 print("FIN received, transfer complete")
                 break

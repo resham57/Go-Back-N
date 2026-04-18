@@ -30,13 +30,19 @@ def transfer(rx_ip, rx_port, filename):
             seqnum = index % seqnum_len
 
             if not chunk:
-                packet = Packet(2, seqnum, 0, None)
+                packet = Packet(2, seqnum, 0, None)  # FIN packet
             else:
-                packet = Packet(1, seqnum, len(chunk), chunk)
-                index += 1
+                packet = Packet(1, seqnum, len(chunk), chunk)  # Data Packet
 
             sock.sendto(packet.serialize(), (rx_ip, rx_port))
-            print(f"{index}: flag={packet.flag}, seqnum={seqnum}, length={packet.length}")
+            print(f"{index} sent: flag={packet.flag}, seqnum={seqnum}, length={packet.length}")
+
+            index += 1
+
+            message, _ = sock.recvfrom(512)
+
+            ack = Packet.deserialize(message)
+            print(f"Received ack: flag={ack.flag}, seqnum={ack.seqnum}, length={ack.length}")
 
             if not chunk:
                 break
