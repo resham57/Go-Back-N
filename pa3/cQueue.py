@@ -12,8 +12,7 @@ class CircularQueue:
         # maximum capacity
         self.capacity = cap
 
-        # Return True if queue is full else False
-
+    # Return True if queue is full else False
     def isFull(self):
         return self.size == self.capacity
 
@@ -21,8 +20,7 @@ class CircularQueue:
     def isEmpty(self):
         return self.size == 0
 
-        # Insert an element at the rear
-
+    # Insert an element at the rear
     def enqueue(self, x):
         if self.size == self.capacity:
             print("Queue is full!")
