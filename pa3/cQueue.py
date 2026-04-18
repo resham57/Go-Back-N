@@ -3,25 +3,26 @@
 
 class CircularQueue:
     def __init__(self, cap):
-         # fixed-size array
-        self.arr = [0]*cap    
-           # index of front element
-        self.front = 0 
-          # current number of elements
-        self.size = 0      
-         # maximum capacity
-        self.capacity = cap   
+        # fixed-size array
+        self.arr = [0] * cap
+        # index of front element
+        self.front = 0
+        # current number of elements
+        self.size = 0
+        # maximum capacity
+        self.capacity = cap
 
+        # Return True if queue is full else False
 
-    # Return True if queue is full else False
     def isFull(self):
         return self.size == self.capacity
 
     # Return True if queue is empty else False
     def isEmpty(self):
-        return self.size == 0 
+        return self.size == 0
 
-    # Insert an element at the rear
+        # Insert an element at the rear
+
     def enqueue(self, x):
         if self.size == self.capacity:
             print("Queue is full!")

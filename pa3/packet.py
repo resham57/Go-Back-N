@@ -1,5 +1,6 @@
 import json
 
+
 class Packet:
     # constructor for the Packet class, initializes the flag, seqnum, length, and payload attributes
     def __init__(self, flag, seqnum, length, payload):
@@ -16,7 +17,7 @@ class Packet:
             "length": self.length,
             "payload": self.payload
         }).encode('utf-8')
-    
+
     # converts the byte data back to a Packet object
     @classmethod
     def deserialize(cls, data):
