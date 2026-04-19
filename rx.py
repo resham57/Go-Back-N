@@ -1,47 +1,42 @@
 import socket
 import argparse
 from pa3.packet import Packet
-from pa3.cQueue import CircularQueue
-
-PAYLOAD_SIZE = 50
-SEQNUM_SIZE = 10
-WINDOW_SIZE = 5
 
 
-def receive(rx_ip, rx_port, filename):
+def reliablyReceive(rx_ip, rx_port, filename):
+    # Implement the UDP receiver to reliably receive the file
+    # You may create other files or methods to further refactor your code,
+    # but do not change the signature of the method reliablyReceive
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
     sock.bind((rx_ip, rx_port))
-
     print(f"Receiver is ready to receive at {sock.getsockname()}")
+
+    expected_seqnum = 0
+    seqnum_len = 10
+    last_ack_seqnum = -1
 
     with open(filename, 'wb') as f:
         while True:
             message, sender_address = sock.recvfrom(512)
             packet = Packet.deserialize(message)
-
             print(f"Received packet: flag={packet.flag}, seqnum={packet.seqnum}, length={packet.length}")
 
-            # before sending ack, have to add logic to make sure that I am getting correct - in-order packets
-
-            ack = Packet(0, packet.seqnum, 0, None)
-            sock.sendto(ack.serialize(), sender_address)
-
             if packet.flag == 2:  # FIN packet
+                ack = Packet(0, packet.seqnum, 0, None)
+                sock.sendto(ack.serialize(), sender_address)
                 print("FIN received, transfer complete")
                 break
 
-            if packet.payload is not None:
+            if packet.seqnum == expected_seqnum:  # in-order packet
                 f.write(packet.payload.encode('latin-1'))
+                last_ack_seqnum = expected_seqnum
+                expected_seqnum = (last_ack_seqnum + 1) % seqnum_len
+                print(f"ACK sent: seqnum={last_ack_seqnum}")
+            else:  # out-of-order packet, resent ACK for last correctly in-ordered packet
+                print(f"Out-of-order: expected={expected_seqnum}, got={packet.seqnum}, resending ACK={last_ack_seqnum}")
 
-    sock.sendto("ACK - Data Received".encode(), sender_address)
-
-
-def reliablyReceive(rx_ip, rx_port, filename):
-    # Implement the UDP receiver to reliably receive the file
-    # You may create other files or methods to further refactor your code, 
-    # but do not change the signature of the method reliablyReceive
-    pass
+            ack = Packet(0, last_ack_seqnum, 0, None)
+            sock.sendto(ack.serialize(), sender_address)
 
 
 if __name__ == "__main__":
@@ -54,5 +49,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     reliablyReceive(args.ip, args.p, args.f)
-
-    receive(args.ip, args.p, args.f)
