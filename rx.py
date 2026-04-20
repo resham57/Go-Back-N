@@ -2,6 +2,8 @@ import socket
 import argparse
 from pa3.packet import Packet
 
+BUFFER_SIZE = 512
+
 
 def reliablyReceive(rx_ip, rx_port, filename):
     # Implement the UDP receiver to reliably receive the file
@@ -19,30 +21,40 @@ def reliablyReceive(rx_ip, rx_port, filename):
     rx_ack_log = open("RxAck.log", "w")
 
     with open(filename, 'wb') as f:
-        while True:
-            message, sender_address = sock.recvfrom(512)
-            packet = Packet.deserialize(message)
-            print(f"Received packet: flag={packet.flag}, seqnum={packet.seqnum}, length={packet.length}")
-            rx_seqnum_log.write(f"{packet.seqnum}\n")
+        try:
+            while True:
+                message, sender_address = sock.recvfrom(BUFFER_SIZE)
+                packet = Packet.deserialize(message)
+                print(f"Received packet: flag={packet.flag}, seqnum={packet.seqnum}, length={packet.length}")
+                rx_seqnum_log.write(f"{packet.seqnum}\n")
 
-            if packet.flag == 2:  # FIN packet
-                ack = Packet(0, packet.seqnum, 0, None)
+                if packet.flag == 2:  # FIN packet
+                    ack = Packet(0, packet.seqnum, 0, None)
+                    sock.sendto(ack.serialize(), sender_address)
+                    rx_ack_log.write(f"{packet.seqnum}\n")
+                    print("FIN received. Waiting briefly to ensure ACK isn't lost...")
+
+                    # Set a timeout so the receiver stays alive just in case
+                    # If no duplicate FINs arrive in 3 seconds, we safely exit.
+                    sock.settimeout(3.0)
+                    continue
+                    # break
+
+                if packet.seqnum == expected_seqnum:  # in-order packet
+                    f.write(packet.payload.encode('latin-1'))
+                    last_ack_seqnum = expected_seqnum
+                    expected_seqnum = (last_ack_seqnum + 1) % seqnum_len
+                    print(f"ACK sent: seqnum={last_ack_seqnum}")
+                else:  # out-of-order packet, resent ACK for last correctly in-ordered packet
+                    print(f"Out-of-order: expected={expected_seqnum}, got={packet.seqnum}, resending ACK={last_ack_seqnum}")
+
+                ack = Packet(0, last_ack_seqnum, 0, None)
                 sock.sendto(ack.serialize(), sender_address)
-                rx_ack_log.write(f"{packet.seqnum}\n")
-                print("FIN received, transfer complete")
-                break
+                rx_ack_log.write(f"{last_ack_seqnum}\n")
 
-            if packet.seqnum == expected_seqnum:  # in-order packet
-                f.write(packet.payload.encode('latin-1'))
-                last_ack_seqnum = expected_seqnum
-                expected_seqnum = (last_ack_seqnum + 1) % seqnum_len
-                print(f"ACK sent: seqnum={last_ack_seqnum}")
-            else:  # out-of-order packet, resent ACK for last correctly in-ordered packet
-                print(f"Out-of-order: expected={expected_seqnum}, got={packet.seqnum}, resending ACK={last_ack_seqnum}")
-
-            ack = Packet(0, last_ack_seqnum, 0, None)
-            sock.sendto(ack.serialize(), sender_address)
-            rx_ack_log.write(f"{last_ack_seqnum}\n")
+        except socket.timeout:
+            print("Timeout reached after FIN. Closing receiver cleanly.")
+            pass
 
     rx_seqnum_log.close()
     rx_ack_log.close()

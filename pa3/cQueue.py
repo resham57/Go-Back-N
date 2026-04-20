@@ -52,6 +52,15 @@ class CircularQueue:
         rear = (self.front + self.size - 1) % self.capacity
         return self.arr[rear]
 
+    # Return all elements currently in the queue without dequeue them
+    def get_window(self):
+        elements = []
+        for i in range(self.size):
+            # Calculate the actual index in the array using modulo
+            index = (self.front + i) % self.capacity
+            elements.append(self.arr[index])
+        return elements
+
 
 if __name__ == "__main__":
     q = CircularQueue(5)

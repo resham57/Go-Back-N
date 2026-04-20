@@ -7,13 +7,24 @@ from pa3.cQueue import CircularQueue
 PAYLOAD_SIZE = 50
 SEQNUM_SIZE = 10
 WINDOW_SIZE = 5
+BUFFER_SIZE = 512
+
+
+# Return all elements currently in the queue
+def get_window(queue):
+    elements = []
+    for i in range(queue.size):
+        # Calculate the actual index in the array using modulo
+        index = (queue.front + i) % queue.capacity
+        elements.append(queue.arr[index])
+    return elements
 
 
 def reliablyTransfer(rx_ip, rx_port, filename):
     print((rx_ip, rx_port, filename))
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(0.5) # confirm the timeout value
+    sock.settimeout(0.5)  # confirm the timeout value
 
     # Check if file exists
     if not os.path.isfile(filename):
@@ -27,7 +38,7 @@ def reliablyTransfer(rx_ip, rx_port, filename):
     file_done = False
 
     tx_seqnum_log = open("TxSeqNum.log", "w")
-    tx_ack_log = open ("TxAck.log", "w")
+    tx_ack_log = open("TxAck.log", "w")
 
     with open(filename, 'rb') as f:
         while True:
@@ -49,29 +60,29 @@ def reliablyTransfer(rx_ip, rx_port, filename):
 
             # Step 2: receive ACKs
             try:
-                message, _ = sock.recvfrom(512)
+                message, _ = sock.recvfrom(BUFFER_SIZE)
                 ack = Packet.deserialize(message)
                 print(f"Received ack: flag={ack.flag}, seqnum={ack.seqnum}")
                 tx_ack_log.write(f"{ack.seqnum}\n")
 
-                # dequeue all packets up to and including ack.seqnum
-                while not q.isEmpty() and q.getFront().seqnum != ack.seqnum:  # instead of != we can use <=
-                    q.dequeue()
-                if not q.isEmpty():
-                    q.dequeue()  # dequeue the ACKed packet itself
+                # Get a list of sequence numbers currently in the window
+                window_seqnums = [p.seqnum for p in get_window(q)]
+
+                # dequeue all packets upto and including ACK if the ACK is for a packet actually in our window
+                if ack.seqnum in window_seqnums:
+                    while not q.isEmpty() and q.getFront().seqnum != ack.seqnum:
+                        q.dequeue()
+                    if not q.isEmpty():
+                        q.dequeue()  # dequeue the ACKed packet itself
+                else:
+                    print(f"Ignored duplicated/old ACK: seqnum={ack.seqnum}")
+
             except socket.timeout:
                 # Step 3: retransmit all packets in window
                 print("Timeout! Retransmitting window...")
                 tx_seqnum_log.write("Timeout\n")
-                temp = []
 
-                # instead of removing and re-adding to queue
-                # have to find a way to send all packets without removing
-                while not q.isEmpty():
-                    temp.append(q.dequeue())
-
-                for pkt in temp:
-                    q.enqueue(pkt)
+                for pkt in get_window(q):
                     sock.sendto(pkt.serialize(), (rx_ip, rx_port))
                     print(f"Retransmit: seqnum={pkt.seqnum}")
                     tx_seqnum_log.write(f"{pkt.seqnum}\n")
@@ -86,7 +97,7 @@ def reliablyTransfer(rx_ip, rx_port, filename):
                     print(f"FIN sent: seqnum={fin_seqnum}")
                     tx_seqnum_log.write(f"{fin_seqnum}\n")
                     try:
-                        message, _ = sock.recvfrom(512)
+                        message, _ = sock.recvfrom(BUFFER_SIZE)
                         ack = Packet.deserialize(message)
                         if ack.seqnum == fin_seqnum:
                             print("FIN ACKed, transfer complete.")
