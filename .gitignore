@@ -3,3 +3,5 @@ PA3.pdf
 .DS_Store
 .idea
 pa3/__pycache__
+
+*.log
