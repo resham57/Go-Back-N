@@ -68,7 +68,7 @@ def reliablyTransfer(rx_ip, rx_port, filename):
             while not q.isFull() and not file_done:
 
                 # read the file as chunk of PAYLOAD_SIZE size
-                chunk = f.read(PAYLOAD_SIZE).decode('latin-1')
+                chunk = f.read(PAYLOAD_SIZE).decode('utf-8')  # assuming file content have only simple characters
 
                 # Generates seq#
                 seqnum = index % SEQNUM_SIZE

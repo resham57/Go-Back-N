@@ -64,7 +64,7 @@ def reliablyReceive(rx_ip, rx_port, filename):
                     rx_ack_log.write(f"{packet.seqnum}\n")
                     print("FIN received. Waiting briefly to ensure ACK isn't lost...")
 
-                    # Set a timeout so receiver doesn't exit immediately
+                    # Sets a timeout so receiver doesn't exit immediately
                     # If no duplicate FINs arrive in 3 seconds, program will safely exit and closes the connection
                     sock.settimeout(3.0)
                     continue
@@ -72,7 +72,7 @@ def reliablyReceive(rx_ip, rx_port, filename):
                 # Handle data packets
                 if packet.seqnum == expected_seqnum:  # in-order packet
                     # Write payload to file after encoding
-                    f.write(packet.payload.encode('latin-1'))
+                    f.write(packet.payload.encode('utf-8'))
 
                     # Updates the last ACK seq # and expected seq #
                     last_ack_seqnum = expected_seqnum
